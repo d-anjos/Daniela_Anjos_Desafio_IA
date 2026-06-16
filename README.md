@@ -1,1 +1,0 @@
-# Daniela_Anjos_Desafio_IA
