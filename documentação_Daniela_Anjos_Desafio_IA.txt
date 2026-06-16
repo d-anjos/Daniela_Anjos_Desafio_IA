@@ -1,0 +1,187 @@
+# PROJETO: PREVISÃO DE CANCELAMENTO DE RESERVAS DE HOTEL
+
+
+Curso: Introdução à Inteligência Artificial (Carreira Tech SCTEC)  
+Autora: Daniela dos Anjos  
+Dataset: `hotel_bookings.csv` – Hotel Booking Demand (Kaggle)
+
+
+Links do projeto:
+
+
+- [Notebook Google Colab](https://colab.research.google.com/drive/1EmFpElY3DJBSZZLMM6utcPRD1Z8gBr-1?usp=drive_link)
+- [Pasta Google Drive](https://drive.google.com/drive/folders/1ltF-kaFPt99CzfLwATIxseiIbliweeIJ?usp=drive_link)
+- [Repositório GitHub](https://github.com/d-anjos/Daniela_Anjos_Desafio_IA)
+
+
+---
+
+
+## 1. DESCRIÇÃO DAS ETAPAS DE DESENVOLVIMENTO
+
+
+### 1.1 Importação e compreensão dos dados
+
+
+- Bibliotecas utilizadas: `pandas`, `numpy`, `matplotlib`, `seaborn`, `scikit-learn`.
+- Leitura do arquivo CSV via upload no Google Colab.
+- Exploração inicial: `df.info()`, `df.head()`, `df.describe()`, `df.isnull().sum()`.
+
+
+### 1.2 Tratamento e preparação dos dados
+
+
+- Duplicatas: removidas 31.994 linhas (antes: 119.390 → depois: 87.396).
+- Valores nulos:
+  - `children` → preenchido com 0
+  - `country` → preenchido com "Desconhecido"
+  - `agent` e `company` → preenchidos com 0
+- Outliers:
+  - Identificados via IQR na coluna `adr` (tarifa diária).
+  - Removidos valores negativos e acima de 1000 (extremamente altos).
+
+
+### 1.3 Feature engineering (criação de novas variáveis)
+
+
+| Nova variável | Cálculo / Origem |
+|---------------|------------------|
+| `total_noites` | `stays_in_weekend_nights + stays_in_week_nights` |
+| `total_hospedes` | `adults + children + babies` |
+| `mes_numero` | Mapeamento do nome do mês para número (1 a 12) |
+| `alta_temporada` | 1 se mês 6,7,8,9 (junho a setembro) |
+| `antecedencia_longa` | 1 se `lead_time > 100` dias |
+| `tem_criancas` | 1 se `children + babies > 0` |
+| `quarto_diferente` | 1 se `reserved_room_type != assigned_room_type` |
+| `is_non_refund` | 1 se `deposit_type == 'Non Refund'` |
+
+
+### 1.4 Análise exploratória (gráficos gerados)
+
+
+Os seguintes arquivos de imagem foram criados e salvos:
+
+
+- `adr_outliers_boxplot_before_cleaning.png` – boxplot ADR antes da limpeza
+- `adr_outliers_boxplot_after_cleaning.png` – boxplot ADR após limpeza
+- `lead_time_vs_cancellation_boxplot.png` – lead time vs cancelamento
+- `cancellation_by_month_bar_plot.png` – cancelamento por mês
+- `cancellation_by_hotel_type_countplot.png` – cancelamento por tipo de hotel
+- `correlation_heatmap.png` – matriz de correlação (heatmap)
+- `cancellation_rate_by_country_bar_plot.png` – cancelamento por país (top 10)
+- `reservations_by_country_bar_plot.png` – reservas por país (top 10)
+- `confusion_matrix_heatmap.png` – matriz de confusão (Random Forest)
+- `roc_curve_plot.png` – curva ROC e AUC
+- `feature_importance_bar_plot.png` – importância das features
+
+
+### 1.5 Modelagem preditiva
+
+
+- Features selecionadas (12):  
+  `lead_time`, `adr`, `total_hospedes`, `total_noites`, `mes_numero`, `alta_temporada`,  
+  `antecedencia_longa`, `tem_criancas`, `quarto_diferente`, `booking_changes`,  
+  `days_in_waiting_list`, `is_repeated_guest`, `is_non_refund`
+- Alvo (y): `is_canceled` (0 = não cancelado, 1 = cancelado)
+- Divisão treino/teste: 80% treino, 20% teste com estratificação
+- Pré-processamento: `StandardScaler` nas variáveis numéricas
+- Modelos treinados:
+  - Árvore de Decisão (`DecisionTreeClassifier`, `max_depth=10`)
+  - Random Forest (`RandomForestClassifier`, `n_estimators=100`, `max_depth=10`)
+
+
+### 1.6 Avaliação dos modelos
+
+
+- Acurácia:
+  - Árvore de Decisão: 81%
+  - Random Forest: 81% (ligeiramente superior)
+- Matriz de confusão e relatório de classificação (precisão, recall, f1-score)
+- AUC-ROC: 0,86 (bom poder discriminativo)
+- Feature importance: `lead_time`, `adr`, `total_hospedes` e `booking_changes` são as variáveis mais influentes.
+
+
+---
+
+
+## 2. PRINCIPAIS DECISÕES TOMADAS DURANTE O TRATAMENTO
+
+
+- Preenchimento de `children` com 0: optou-se por não remover as linhas, pois a ausência de informação provavelmente significa "sem crianças". Remover as linhas reduziria muito o dataset.
+- Remoção de outliers de `adr` acima de 1000: valores extremos (ex: diárias de mais de 1000 euros) são casos raros e distorcem a média, portanto foram excluídos.
+- Não uso da coluna `reservation_status`: para evitar *data leakage* (essa coluna já contém o resultado final do cancelamento após a estadia).
+- Exclusão da coluna `hotel` das features: opção para reduzir dimensionalidade; o modelo ainda captura padrões indiretamente.
+
+
+---
+
+
+## 3. PRINCIPAIS INSIGHTS OBTIDOS
+
+
+1. Taxa de cancelamento geral no dataset: aproximadamente 37%.
+2. City Hotel concentra cerca de 66% das reservas e sua taxa de cancelamento (41%) é maior que a do Resort Hotel (27%).
+3. Lead time (dias de antecedência da reserva) é a variável mais importante: quanto maior o lead time, maior a chance de cancelamento.
+4. Sazonalidade: meses de verão (junho a setembro) apresentam os maiores índices de cancelamento.
+5. Depósito não reembolsável (`is_non_refund = 1`) reduz drasticamente a chance de cancelamento (correlação negativa forte).
+6. Hóspedes com histórico de cancelamento (`previous_cancellations`) e com muitas alterações na reserva (`booking_changes`) tendem a cancelar mais.
+7. Países com mais reservas (PRT, GBR, FRA, ESP, DEU) também apresentam altas taxas de cancelamento. Portugal (PRT) é o país com maior volume de reservas.
+
+
+---
+
+
+## 4. ANÁLISE DOS RESULTADOS DO MODELO PREDITIVO
+
+
+- Acurácia do Random Forest: 81% – 18 pontos percentuais acima do *baseline* (63%, que seria chutar sempre "não cancelado").
+- Recall para a classe "Cancelado": 68% – o modelo identifica cerca de dois terços dos cancelamentos reais.
+- O pior erro para o negócio é o falso negativo (FN): quando o modelo prevê "não cancelado" mas a reserva é cancelada. Isso causa perda de receita e impossibilita o hotel de realocar o quarto.
+- AUC-ROC = 0,86 – indica boa capacidade do modelo de distinguir entre as duas classes (cancelado vs. não cancelado).
+- Feature importance: `lead_time` é a feature mais importante, seguida por `adr` (tarifa diária) e `total_hospedes`. Isso confirma a intuição de que reservas com muita antecedência e tarifas altas têm maior risco de cancelamento.
+
+
+---
+
+
+## 5. CONCLUSÃO E RECOMENDAÇÕES
+
+
+O modelo desenvolvido é útil para o negócio e pode ser aplicado em:
+
+
+- Overbooking inteligente: oferecer o quarto a outro cliente quando a probabilidade de cancelamento é alta.
+- Campanhas de retenção: enviar e-mail ou oferecer desconto para reservas classificadas como alto risco.
+- Planejamento de equipe: antecipar cancelamentos para ajustar a operação do hotel.
+
+
+---
+
+
+## 6. LISTA DE ARQUIVOS ENTREGUES (CONTEÚDO DO .ZIP)
+
+
+| Arquivo                                      | Descrição |
+|----------------------------------------------|-----------|
+| `Daniela_Anjos_desafio_extra_ia.ipynb`       | Notebook com todo o código desenvolvido |
+| `hotel_bookings.csv`                         | Dataset original (baixado do Kaggle) |
+| `documentacao.md`                            | Este arquivo de documentação |
+| `adr_outliers_boxplot_before_cleaning.png`   | Boxplot ADR antes da limpeza |
+| `adr_outliers_boxplot_after_cleaning.png`    | Boxplot ADR após limpeza |
+| `lead_time_vs_cancellation_boxplot.png`      | Lead time vs cancelamento (boxplot) |
+| `cancellation_by_month_bar_plot.png`         | Cancelamento por mês (barras) |
+| `cancellation_by_hotel_type_countplot.png`   | Cancelamento por tipo de hotel |
+| `correlation_heatmap.png`                    | Matriz de correlação (heatmap) |
+| `cancellation_rate_by_country_bar_plot.png`  | Cancelamento por país (top 10) |
+| `reservations_by_country_bar_plot.png`       | Reservas por país (top 10) |
+| `confusion_matrix_heatmap.png`               | Matriz de confusão (Random Forest) |
+| `roc_curve_plot.png`                         | Curva ROC e AUC |
+| `feature_importance_bar_plot.png`            | Importância das features |
+| `README.txt`                                 | Instruções |
+
+
+---
+
+
+Data de conclusão: 14/06/2026  
+Assinatura: Daniela dos Anjos
